@@ -1,5 +1,5 @@
 ---
-name: legal_ai
+name: analyze_legal_ai_gdpr
 description: Analyze software projects for GDPR and EU AI Act compliance and scaffold necessary documentation.
 agent: agent
 tools: ['edit', 'search', 'new', 'runCommands', 'runTasks', 'fetch/*', 'github/add_issue_comment', 'github/add_sub_issue', 'github/create_gist', 'github/create_issue', 'github/create_or_update_file', 'github/get_commit', 'github/get_discussion', 'github/get_discussion_comments', 'github/get_file_contents', 'github/get_issue', 'github/get_issue_comments', 'github/get_pull_request', 'github/get_pull_request_review_comments', 'github/get_pull_request_reviews', 'github/get_pull_request_status', 'github/list_branches', 'github/list_commits', 'github/list_discussions', 'github/list_issues', 'github/list_notifications', 'github/list_pull_requests', 'github/list_sub_issues', 'github/push_files', 'github/search_code', 'github/search_issues', 'github/search_pull_requests', 'memory/*', 'sequentialthinking/*', 'runSubagent', 'vscodeAPI', 'problems', 'changes', 'fetch', 'githubRepo', 'extensions', 'todos']
