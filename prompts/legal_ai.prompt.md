@@ -54,17 +54,24 @@ You MUST execute the following workflow step-by-step when triggered. You will ac
 ### Step 4: PDF Build Script Generation
 
 1.  After scaffolding all document templates, you MUST create one final file: `/legal/documentation/build_docs.sh`.
-2.  This script MUST be a portable `bash` script that builds each LaTeX template into a PDF using a container runtime. The script MUST:
-    * Check whether `podman` or `docker` is available on the system (prefer `podman` if both are present). If neither is found, exit with a clear error message and non-zero status.
-    * Use the default LaTeX image `kjarosh/latex:2025.1`. The image name MUST be overridable via an environment variable (e.g. `LATEX_IMAGE`) or a command-line option.
-3.  The script's logic MUST:
-    * Find all immediate subdirectories within `/legal/documentation/` (each subdirectory corresponds to one document).
-    * For each subdirectory, locate the primary `.tex` file inside it (you can assume there is exactly one `.tex` file per document directory for the purposes of this task).
-        * Before compiling, the script MUST attempt to pull the selected image from the container registry using the chosen runtime (e.g., `podman pull "$LATEX_IMAGE"` or `docker pull "$LATEX_IMAGE"`). If the pull fails, the script should exit with a descriptive error and non-zero status.
-        * Run the container runtime to compile the `.tex` file into a PDF such that the generated PDF is placed in the same document subdirectory.
-            - Provide an example, robust container invocation using either `podman run ...` or `docker run ...` and the `LATEX_IMAGE` variable. The script should mount the repository root into the container (e.g., `-v "$(pwd)":/data`) and set a working directory or output directory so that the PDF appears under `/legal/documentation/<doc>/` on the host.
-    * Be well-commented: explain purpose, required dependencies (Docker or Podman), how to override the image, and example usage.
+2.  Instead of invoking the runtime directly, prefer using a compose-based workflow so the build is reproducible and easier to run with either Docker or Podman. The agent MUST produce two artifacts (when asked to implement the build):
+    * `docker-compose.docs.yml` — a Docker Compose file (compatible with both `docker compose` and `podman compose`) that defines a service for building LaTeX documents.
+    * `/legal/documentation/build_docs.sh` — a small orchestration `bash` script that will use `docker compose` or `podman compose` to pull the image and run per-document builds via the compose file.
+
+3.  Requirements for `docker-compose.docs.yml` (the agent must generate this file):
+    * The compose file MUST define a single service (suggested name: `latex-builder`) that uses the image specified by an environment variable `LATEX_IMAGE` with a default of `kjarosh/latex:2025.1`.
+    * The service MUST mount the repository root into the container at `/data` (host `$(pwd)` -> container `/data`) so the container can see `/legal/documentation/` and write the resulting PDFs back to the host.
+    * The service MUST be designed so a run can be targeted at a specific document directory by setting the container's working directory (e.g., `working_dir: /data/legal/documentation/<doc>`), or by passing the `.tex` path as the service command.
+    * The compose file MUST include a `pull_policy` or the agent should document using `docker compose pull` / `podman compose pull` prior to running (compose v2 supports `pull_policy` keys in some implementations; if not supported, the build script will call `compose pull`).
+    * Provide example volumes and a small command section showing how an invocation for a single document would look (e.g., `command: ['bash','-lc','latexmk -pdf -interaction=nonstopmode -output-directory=. main.tex']`).
+
+4.  Requirements for `/legal/documentation/build_docs.sh` (the agent must produce this script when implementing the build):
+    * The script MUST detect whether `podman` (and `podman compose`/`podman-compose`) or `docker` (and `docker compose`) is available and select the appropriate compose command (prefer `podman compose` if both are present).
+    * The script MUST accept an optional `LATEX_IMAGE` override (env var or `--image` flag) and pass that to the compose environment when running (for example, using an `.env` file or `-e LATEX_IMAGE=...`).
+    * The script MUST call the compose pull operation first for the selected runtime to download `LATEX_IMAGE` (for reliable offline runs), and exit with non-zero status and a helpful message if the pull fails.
+    * The script MUST iterate over each immediate subdirectory of `/legal/documentation/` (or accept an optional target document) and run a compose command to build that document. The compose invocation should run the `latex-builder` service with an overridable working directory or command so that output PDFs are written to the respective subdirectory on the host.
+    * The script MUST be well-commented and include example usage for both Docker and Podman environments on Linux/Windows with bash.
 
 Notes:
-- The previous prompt required `kjarosh/latex-docker`; replace that with the explicit default image `kjarosh/latex:2025.1` and make the build script runtime-aware (podman/docker detection).
-- Keep instructions concise but specific enough so an implementer can create a `build_docs.sh` that meets these requirements.
+- The agent must ensure the generated `docker-compose.docs.yml` is compatible with commonly available `docker compose` and `podman compose` versions; if specific compose features are required, document the minimum compose engine version required.
+- Default image is `kjarosh/latex:2025.1` (agent should confirm tag existence when implementing; if unavailable, the agent should fall back to a documented alternative tag and note why).
